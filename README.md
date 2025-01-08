@@ -2,7 +2,7 @@ To contribute to this Repo:
 ## Creating a New Branch
 1. Clone this repo to your local machine:
 
-  `git clone https://github.com/andrewismoody/FRC3680_Java.git`
+  `git clone https://github.com/andrewismoody/FRC3680_Gyro_BNO055.git`
   
 3. Create a new local branch:
 
