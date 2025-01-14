@@ -18,11 +18,13 @@ const int intPin = 2;
 const int accXPin = 12;
 const int accYPin = 13;
 const int GyroZPin = 14;
+const int InputPin = 26;
 const float Rad2Deg = 180 / 3.14;
 const double Deg2Rad = 3.14 / 180; //trig functions require radians, BNO055 outputs degrees
 
 const float AccUnits = (9.8 * 2) * 2; // 2G
 const float GyroUnits = 360.0 * 2; // Full Circle
+const int outputRange = 4096;
 
 const int CalSam = 20;
 const bool hasMag = false;
@@ -34,7 +36,7 @@ uint32_t elapsedTime, previousTime, lastPrint;
 void setup() {
   /* Serial to display data */
   Serial.begin(115200);
-  while(!Serial) {}
+  //while(!Serial) {}
 
   Serial.println("start delay");
   delay(1000);
@@ -58,6 +60,17 @@ void setup() {
 
   Serial.println();
   delay(1000);
+
+  analogReadResolution(12);
+  pinMode(InputPin, INPUT);
+
+  analogWriteFreq(500000);
+  analogWriteRange(outputRange);
+  analogWriteResolution(12);
+
+  pinMode(accXPin, OUTPUT);
+  pinMode(accYPin, OUTPUT);
+  pinMode(GyroZPin, OUTPUT);
 
   // calculate_offsets();
   // calculate_filters();
@@ -90,14 +103,16 @@ void loop() {
   //  use pos_out.z for angle
   pos_out.z = ang_in.x; // X is 'up'
   
-  float angleScale = 4096.0 / GyroUnits; // 12-bit value of angle range
-  float accelScale = 4096.0 / AccUnits; // 39.24; // 12-bit value of -19.62m/s to 19.62m/s range
+  float angleScale = outputRange / GyroUnits; // 12-bit value of angle range
+  float accelScale = outputRange / AccUnits; // 39.24; // 12-bit value of -19.62m/s to 19.62m/s range
 
-  adj_out.x = pos_out.x * accelScale + 2048;
-  adj_out.y = pos_out.y * accelScale + 2048;
-  adj_out.z = pos_out.z * angleScale + 2048;
+  adj_out.x = pos_out.x * accelScale + outputRange / 2; // center zero at range midpoint
+  adj_out.y = pos_out.y * accelScale + outputRange / 2; // center zero at range midpoint
+  adj_out.z = pos_out.z * angleScale + outputRange / 2; // center zero at range midpoint
 
   if (currentTime - lastPrint > 500) {
+    Serial.print("AnalogRead ("); Serial.print(InputPin); Serial.print("): "); Serial.println(analogRead(InputPin));
+
     print_analog_output();
 
     print_calstatus();
