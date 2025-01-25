@@ -6,6 +6,17 @@
 #include <utility/imumaths.h>
 #include <EEPROM.h>
 
+#include <Adafruit_GPS.h>
+
+#define GPSSerial Serial1
+
+// The Adafruit_GPS object
+Adafruit_GPS gps;
+
+// Set GPSECHO to 'false' to turn off echoing the GPS data to the Serial console
+// Set to 'true' if you want to debug and listen to the raw GPS sentences
+#define GPSECHO false
+
 Adafruit_BNO055 mpu = Adafruit_BNO055(55);
 
 struct {
@@ -33,6 +44,10 @@ const int Delay = 10;
 
 uint32_t elapsedTime, previousTime, lastPrint;
 
+int gpsReady;
+bool gpsEncoded;
+bool gpsAcquired;
+
 void setup() {
   /* Serial to display data */
   Serial.begin(115200);
@@ -52,6 +67,8 @@ void setup() {
   Serial.println("BNO055 Found!");
 
   restore_calibration();
+
+  gps.begin(9600);
 
   delay(1000);
 
@@ -88,14 +105,21 @@ void loop() {
   double TimeSlice = elapsedTime / 1000.0;
 
   get_values();
+  get_gpsvalues();
   // adjust_values();
   //filter_values();
 
-  vel_out.x = vel_out.x + (acc_in.x * TimeSlice);
-  pos_out.x = pos_out.x + (vel_out.x * TimeSlice);
+  // vel_out.x = vel_out.x + (acc_in.x * TimeSlice);
+  // pos_out.x = pos_out.x + (vel_out.x * TimeSlice);
 
-  vel_out.y = vel_out.y + (acc_in.y * TimeSlice);
-  pos_out.y = pos_out.y + (vel_out.y * TimeSlice);
+  // gps coordinates
+  pos_out.x = acc_in.x;
+
+  // vel_out.y = vel_out.y + (acc_in.y * TimeSlice);
+  // pos_out.y = pos_out.y + (vel_out.y * TimeSlice);
+
+  // gps coordinates
+  pos_out.y = acc_in.y;
 
   vel_out.z = vel_out.z + (acc_in.z * TimeSlice);
   // pos_out.z = pos_out.z + (vel_out.z * elapsedTime);
@@ -111,7 +135,8 @@ void loop() {
   adj_out.z = pos_out.z * angleScale + outputRange / 2; // center zero at range midpoint
 
   if (currentTime - lastPrint > 500) {
-    Serial.print("AnalogRead ("); Serial.print(InputPin); Serial.print("): "); Serial.println(analogRead(InputPin));
+    //Serial.print("AnalogRead ("); Serial.print(InputPin); Serial.print("): "); Serial.println(analogRead(InputPin));
+    // Serial.print("gpsReady: "); Serial.print(gpsReady); Serial.print("; gpsEncoded: "); Serial.print(gpsEncoded); Serial.print("; gpsAcquired: "); Serial.println(gpsAcquired);
 
     print_analog_output();
 
@@ -131,6 +156,54 @@ void loop() {
   previousTime = millis();
 
   delay(10);
+}
+
+void get_gpsvalues() {
+  while (gps.available()) {
+    char c = gps.read();
+  }
+
+  if (gps.newNMEAreceived()) {
+      if (!gps.parse(gps.lastNMEA())) // this also sets the newNMEAreceived() flag to false
+      return; // we can fail to parse a sentence in which case we should just wait for another
+  }
+
+  if (gps.fix) {
+    Serial.print("Location: ");
+    Serial.print(gps.latitude, 4); Serial.print(gps.lat);
+    Serial.print(", ");
+    Serial.print(gps.longitude, 4); Serial.println(gps.lon);
+
+    // acc_in.x = gps.latitude;
+    // acc_in.y = gps.longitude;
+
+    acc_in.x = gps.lat;
+    acc_in.y = gps.lon;
+  }
+
+  // bool printed = false;
+  // while (true) {
+  //   int available = Serial1.available();
+  //   //Serial.print(available, DEC);
+  //   if (available > 0) {
+  //     printed = true;
+  //     int val = Serial1.read();
+  //     Serial.print((char)val);
+  //     gpsEncoded = gps.encode(val);
+  //     if (gpsEncoded) {
+  //       gpsAcquired = gps.location.isValid();
+  //       if (gpsAcquired) {
+  //         acc_in.x = gps.location.lat();
+  //         acc_in.y = gps.location.lng();
+  //       }
+  //     }
+  //   } else {
+  //     break;
+  //   }
+  // }
+  // if (printed) {
+  //   Serial.println();
+  // }
 }
 
 void get_values() {
@@ -154,9 +227,9 @@ void get_values() {
     }
 
     if (accel > 0) {
-      acc_in.x = a.acceleration.x;
-      acc_in.y = a.acceleration.y;
-      acc_in.z = a.acceleration.z;
+      // acc_in.x = a.acceleration.x;
+      // acc_in.y = a.acceleration.y;
+      // acc_in.z = a.acceleration.z;
     } else {
       acc_in.x = 0;
       acc_in.y = 0;
